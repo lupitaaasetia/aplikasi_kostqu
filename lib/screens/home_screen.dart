@@ -1,5 +1,6 @@
 // screens/home_screen.dart - Updated with SingleChildScrollView and Centered Welcome Text
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../models/kost.dart';
 import '../services/kost_service.dart';
 import '../services/auth_service.dart';
@@ -616,7 +617,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // Rating badge
+                  //    badge
                   Positioned(
                     bottom: 16,
                     left: 16,
@@ -632,8 +633,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
+                          RatingBarIndicator(
+                            rating: 2.6,
+                            itemBuilder: (context, index) =>
+                                Icon(Icons.star, color: Colors.amber),
+                            itemCount: 5,
+                            itemSize: 15.0,
+                            direction: Axis.horizontal,
+                          ),
                           Text(
                             kost.rating.toStringAsFixed(1),
                             style: const TextStyle(

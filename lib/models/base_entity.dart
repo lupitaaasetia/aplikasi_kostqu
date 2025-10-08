@@ -21,7 +21,6 @@ abstract class BaseEntity {
   Map<String, dynamic> toJson();
   String getDisplayName();
 
-  // Template method pattern
   String getBaseInfo() {
     return 'ID: $_id, Created: ${_formatDate(_createdAt)}';
   }

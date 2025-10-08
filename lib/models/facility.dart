@@ -77,6 +77,7 @@ class Facility extends BaseEntity {
       'name': _name,
       'type': _type.name,
       'iconCodePoint': _icon.codePoint,
+      // ignore: deprecated_member_use
       'colorValue': _color.value,
       'isAvailable': _isAvailable,
       'additionalCost': _additionalCost,
@@ -122,14 +123,6 @@ class Facility extends BaseEntity {
         type: FacilityType.electrical,
         icon: Icons.electrical_services,
         color: Colors.amber,
-      );
-    } else if (lowerName.contains('parkir')) {
-      return Facility(
-        id: id,
-        name: facilityName,
-        type: FacilityType.parking,
-        icon: Icons.local_parking,
-        color: Colors.grey,
       );
     } else {
       return Facility(

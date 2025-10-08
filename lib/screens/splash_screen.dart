@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'dart:async';
 import 'login_screen.dart';
 
@@ -219,15 +220,14 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _fadeAnimation,
                     child: Column(
                       children: [
-                        SizedBox(
-                          width: 30,
-                          height: 30,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white.withOpacity(0.8),
-                            ),
-                            strokeWidth: 3,
-                          ),
+                        LoadingAnimationWidget.staggeredDotsWave(
+                          color: const Color.fromARGB(
+                            255,
+                            255,
+                            255,
+                            255,
+                          ), // Warna biru tua
+                          size: 50, // Ukuran disesuaikan
                         ),
                         const SizedBox(height: 16),
                         Text(
