@@ -1,4 +1,3 @@
-// models/kost.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'base_entity.dart';
@@ -25,6 +24,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
   String _phoneNumber;
   final double _latitude;
   final double _longitude;
+  final List<String> _imageUrls;
   KostStatus _status;
 
   BaseKost({
@@ -38,6 +38,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
     required String phoneNumber,
     required double latitude,
     required double longitude,
+    required List<String> imageUrls,
     KostStatus status = KostStatus.available,
   }) : _name = name,
        _address = address,
@@ -48,6 +49,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
        _phoneNumber = phoneNumber,
        _latitude = latitude,
        _longitude = longitude,
+       _imageUrls = List.from(imageUrls),
        _status = status {
     _validateInputs();
   }
@@ -63,6 +65,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
   double get latitude => _latitude;
   double get longitude => _longitude;
   KostStatus get status => _status;
+  List<String> get imageUrls => List.unmodifiable(_imageUrls);
 
   // Setters with validation (Encapsulation)
   set name(String value) {
@@ -209,6 +212,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
       'phoneNumber': _phoneNumber,
       'latitude': _latitude,
       'longitude': _longitude,
+      'imageUrls': _imageUrls,
       'kostType': getKostType(),
       'status': _status.name,
       'createdAt': createdAt.toIso8601String(),
@@ -282,6 +286,7 @@ class FemaleKost extends BaseKost {
     required super.phoneNumber,
     required super.latitude,
     required super.longitude,
+    required super.imageUrls,
     bool hasSecurityGuard = false,
     String curfewTime = '22:00',
     super.status,
@@ -336,6 +341,7 @@ class MaleKost extends BaseKost {
     required super.phoneNumber,
     required super.latitude,
     required super.longitude,
+    required super.imageUrls,
     bool allowsSmoking = false,
     bool hasWorkspace = false,
     super.status,
@@ -391,6 +397,7 @@ class MixedKost extends BaseKost {
     required super.phoneNumber,
     required super.latitude,
     required super.longitude,
+    required super.imageUrls,
     bool hasSeparateEntrance = true,
     int maleRooms = 5,
     int femaleRooms = 5,

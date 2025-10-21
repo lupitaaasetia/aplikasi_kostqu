@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../models/user.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -15,16 +17,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _authService = AuthService();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  UserRole _selectedRole = UserRole.customer;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -46,6 +53,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
       return 'Masukkan email yang valid';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Nomor telepon diperlukan';
+    }
+    if (value.length < 10) {
+      return 'Nomor telepon tidak valid';
     }
     return null;
   }
@@ -76,8 +93,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = true;
       });
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      final request = RegisterRequest(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        phoneNumber: _phoneController.text.trim(),
+        role: _selectedRole,
+      );
+
+      final result = await _authService.register(request);
 
       if (mounted) {
         setState(() {
@@ -85,16 +109,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pendaftaran berhasil! Silakan login.'),
-            backgroundColor: Color(0xFF4CAF50),
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? Colors.green : Colors.red,
           ),
         );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        if (result.success) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
       }
     }
   }
@@ -158,7 +184,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
+
+                  // Role Selection
+                  const Text(
+                    'Daftar sebagai:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6B46C1),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildRoleCard(
+                          role: UserRole.customer,
+                          icon: Icons.person,
+                          title: 'Pencari Kost',
+                          description: 'Cari dan booking kost',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildRoleCard(
+                          role: UserRole.owner,
+                          icon: Icons.business,
+                          title: 'Pemilik Kost',
+                          description: 'Kelola kost Anda',
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // Name Field
                   CustomTextField(
@@ -176,6 +236,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _emailController,
                     validator: _validateEmail,
                     keyboardType: TextInputType.emailAddress,
+                    obscureText: false,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Phone Field
+                  CustomTextField(
+                    hintText: 'Nomor Telepon',
+                    controller: _phoneController,
+                    validator: _validatePhone,
+                    keyboardType: TextInputType.phone,
                     obscureText: false,
                   ),
 
@@ -266,6 +337,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required UserRole role,
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    final isSelected = _selectedRole == role;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRole = role;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF6B46C1).withOpacity(0.1)
+              : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF6B46C1) : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 32,
+              color: isSelected ? const Color(0xFF6B46C1) : Colors.grey[600],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? const Color(0xFF6B46C1) : Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

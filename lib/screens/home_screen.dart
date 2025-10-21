@@ -1,11 +1,13 @@
-// screens/home_screen.dart - Updated with SingleChildScrollView and Centered Welcome Text
+// screens/home_screen.dart - UPDATED VERSION
 import 'package:flutter/material.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:intl/intl.dart';
 import '../models/kost.dart';
 import '../services/kost_service.dart';
-import '../services/auth_service.dart';
-import 'login_screen.dart';
+import '../services/booking_service.dart';
+import '../services/notification_service.dart';
 import 'kost_detail_screen.dart';
+import 'profile_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
@@ -18,15 +20,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final KostService _kostService = KostService();
-  final AuthService _authService = AuthService();
+  final BookingService _bookingService = BookingService();
+  final NotificationService _notificationService = NotificationService();
   final ScrollController _scrollController = ScrollController();
 
   List<BaseKost> _filteredKostList = [];
   List<BaseKost> _allKostList = [];
   String _selectedFilter = 'Semua';
   String _searchQuery = '';
-  SortCriteria _currentSort = SortCriteria.name;
-  bool _sortAscending = true;
   bool _showScrollToTop = false;
 
   final List<String> _filterOptions = [
@@ -36,9 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
     'Kost Perempuan',
     'Kost Laki-laki',
     'Kost Campur',
-    'Kamar Mandi Dalam',
-    'AC',
-    'WiFi',
   ];
 
   final TextEditingController _searchController = TextEditingController();
@@ -60,13 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _scrollListener() {
     if (_scrollController.offset > 300 && !_showScrollToTop) {
-      setState(() {
-        _showScrollToTop = true;
-      });
+      setState(() => _showScrollToTop = true);
     } else if (_scrollController.offset <= 300 && _showScrollToTop) {
-      setState(() {
-        _showScrollToTop = false;
-      });
+      setState(() => _showScrollToTop = false);
     }
   }
 
@@ -82,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _kostService.initializeData();
     _allKostList = _kostService.allKost;
     _filteredKostList = List.from(_allKostList);
+    _bookingService.initializeDemoReviews(_allKostList);
+    _notificationService.initialize(widget.userEmail);
     setState(() {});
   }
 
@@ -98,11 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
       kostType: _selectedFilter == 'Semua'
           ? null
           : _getKostTypeFromFilter(_selectedFilter),
-      sortBy: _currentSort,
-      ascending: _sortAscending,
+      sortBy: SortCriteria.name,
+      ascending: true,
     );
 
-    // Apply specific filters
     if (_selectedFilter == 'Harga Termurah') {
       results = _kostService.sortKost(
         results,
@@ -115,17 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
         SortCriteria.rating,
         ascending: false,
       );
-    } else if (_selectedFilter == 'Kamar Mandi Dalam') {
-      results = _kostService.filterByFacilities(['Kamar Mandi Dalam']);
-    } else if (_selectedFilter == 'AC') {
-      results = _kostService.filterByFacilities(['AC']);
-    } else if (_selectedFilter == 'WiFi') {
-      results = _kostService.filterByFacilities(['WiFi']);
     }
 
-    setState(() {
-      _filteredKostList = results;
-    });
+    setState(() => _filteredKostList = results);
   }
 
   String? _getKostTypeFromFilter(String filter) {
@@ -148,418 +135,440 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _logout() {
-    _authService.logout();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-  }
-
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: SingleChildScrollView(
+      body: CustomScrollView(
         controller: _scrollController,
-        child: Column(
-          children: [
-            // App Bar dengan gradient background
-            Container(
-              height: 280,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
-                ),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header dengan logo
-                      Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(25),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'KostQu',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _logout,
-                            icon: const Icon(Icons.logout, color: Colors.white),
-                            tooltip: 'Keluar',
-                          ),
-                        ],
+        slivers: [
+          _buildAppBar(),
+          SliverToBoxAdapter(child: _buildSearchSection()),
+          SliverToBoxAdapter(child: _buildFilterSection()),
+          SliverToBoxAdapter(child: _buildResultCount()),
+          _filteredKostList.isEmpty
+              ? SliverFillRemaining(child: _buildEmptyState())
+              : SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildKostCard(_filteredKostList[index]),
                       ),
-                      const SizedBox(height: 16),
-                      // Welcome text - CENTERED
-                      Center(
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Selamat Datang!',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 38,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                widget.userEmail,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      // Search Bar
-                      TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Cari kost, alamat, atau fasilitas...',
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            color: Color(0xFF6B46C1),
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () => _searchController.clear(),
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Results count
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.grey[600], size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Ditemukan ${_filteredKostList.length} kost tersedia',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-            // Filter Section
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.filter_list,
-                        color: Color(0xFF6B46C1),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Filter & Urutkan',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 40,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _filterOptions.length,
-                      itemBuilder: (context, index) {
-                        final option = _filterOptions[index];
-                        final isSelected = _selectedFilter == option;
-                        return GestureDetector(
-                          onTap: () => _onFilterSelected(option),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF6B46C1)
-                                  : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF6B46C1)
-                                    : Colors.grey[300]!,
-                              ),
-                            ),
-                            child: Text(
-                              option,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.black87,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      childCount: _filteredKostList.length,
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Kost List atau Empty State
-            _filteredKostList.isEmpty
-                ? _buildEmptyState()
-                : Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: _filteredKostList.map((kost) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildKostCard(kost),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-            // Bottom spacing
-            const SizedBox(height: 80),
-          ],
-        ),
+                ),
+        ],
       ),
-
-      // Floating Action Button untuk scroll to top
       floatingActionButton: _showScrollToTop
           ? FloatingActionButton(
               onPressed: _scrollToTop,
               backgroundColor: const Color(0xFF6B46C1),
+              mini: true,
               child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
             )
           : null,
     );
   }
 
-  Widget _buildEmptyState() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildAppBar() {
+    final unreadCount = _notificationService.getUnreadCount(widget.userEmail);
+
+    return SliverAppBar(
+      expandedHeight: 180,
+      floating: false,
+      pinned: true,
+      backgroundColor: const Color(0xFF6B46C1),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF6B46C1), Color(0xFF8B5CF6)],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: const Icon(
+                          Icons.home_work,
+                          color: Color(0xFF6B46C1),
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'KostQu',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Selamat Datang!',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.userEmail,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        // Notification Bell
+        Stack(
           children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(60),
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_outlined,
+                color: Colors.white,
               ),
-              child: Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'Tidak ada kost yang cocok'
-                  : 'Tidak ada kost ditemukan',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchQuery.isNotEmpty
-                  ? 'dengan pencarian "$_searchQuery"'
-                  : 'untuk filter "$_selectedFilter"',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
               onPressed: () {
-                setState(() {
-                  _selectedFilter = 'Semua';
-                  _searchController.clear();
-                  _applyFilters();
-                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        NotificationsScreen(userEmail: widget.userEmail),
+                  ),
+                ).then((_) => setState(() {})); // Refresh after back
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6B46C1),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reset Filter'),
-            ),
           ],
+        ),
+        // Profile Icon
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      ProfileScreen(userEmail: widget.userEmail),
+                ),
+              );
+            },
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              radius: 18,
+              child: Text(
+                widget.userEmail[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xFF6B46C1),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Cari kost, alamat, atau fasilitas...',
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF6B46C1)),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey[100],
         ),
       ),
     );
   }
 
-  Widget _buildKostCard(BaseKost kost) {
-    final Color kostColor = kost.getPrimaryColor();
-    final IconData kostIcon = kost.getKostIcon();
+  Widget _buildFilterSection() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.filter_list, color: Color(0xFF6B46C1), size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Filter',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _filterOptions.length,
+              itemBuilder: (context, index) {
+                final option = _filterOptions[index];
+                final isSelected = _selectedFilter == option;
+                return GestureDetector(
+                  onTap: () => _onFilterSelected(option),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF6B46C1)
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      option,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildResultCount() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey[600], size: 16),
+          const SizedBox(width: 4),
+          Text(
+            'Ditemukan ${_filteredKostList.length} kost tersedia',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'Tidak ada kost ditemukan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Coba ubah filter atau kata kunci pencarian',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                _selectedFilter = 'Semua';
+                _searchController.clear();
+                _applyFilters();
+              });
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reset Filter'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6B46C1),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKostCard(BaseKost kost) {
     return Card(
-      elevation: 6,
-      shadowColor: kostColor.withOpacity(0.3),
+      elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => KostDetailScreen(kost: kost),
-            ),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => KostDetailScreen(kost: kost)),
+        ),
         borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Image dengan gradient
+            // IMAGE WITH REAL PHOTO
             Container(
               height: 200,
-              width: double.infinity,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    kostColor.withOpacity(0.8),
-                    kostColor.withOpacity(0.4),
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
                 ),
               ),
               child: Stack(
                 children: [
-                  // Background pattern
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
-                        gradient: RadialGradient(
-                          center: const Alignment(0.3, -0.3),
-                          radius: 1.2,
-                          colors: [
-                            Colors.white.withOpacity(0.2),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
+                  // Background Image
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
-                  ),
-
-                  // Main icon
-                  Center(
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
+                    child: kost.imageUrls.isNotEmpty
+                        ? Image.network(
+                            kost.imageUrls[0], // Ambil gambar pertama dari list
+                            width: double.infinity,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: kost.getPrimaryColor().withOpacity(0.3),
+                                child: Center(
+                                  child: Icon(
+                                    kost.getKostIcon(),
+                                    size: 60,
+                                    color: kost.getPrimaryColor(),
+                                  ),
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value:
+                                        loadingProgress.expectedTotalBytes !=
+                                            null
+                                        ? loadingProgress
+                                                  .cumulativeBytesLoaded /
+                                              loadingProgress
+                                                  .expectedTotalBytes!
+                                        : null,
+                                    color: kost.getPrimaryColor(),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: kost.getPrimaryColor().withOpacity(0.3),
+                            child: Center(
+                              child: Icon(
+                                kost.getKostIcon(),
+                                size: 60,
+                                color: kost.getPrimaryColor(),
+                              ),
+                            ),
                           ),
+                  ),
+                  // Gradient overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
                         ],
                       ),
-                      child: Icon(kostIcon, size: 40, color: kostColor),
                     ),
                   ),
-
                   // Status badge
                   Positioned(
-                    top: 16,
-                    left: 16,
+                    top: 12,
+                    left: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
@@ -567,60 +576,55 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? Colors.green
                             : Colors.red,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: Text(
                         kost.status.displayName,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-
                   // Type badge
                   Positioned(
-                    top: 16,
-                    right: 16,
+                    top: 12,
+                    right: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: kostColor,
+                        color: kost.getPrimaryColor(),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            kost.getKostIcon(),
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            kost.getKostType(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
-                      child: Text(
-                        kost.getKostType(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
                   ),
-
-                  //    badge
+                  // Rating
                   Positioned(
-                    bottom: 16,
-                    left: 16,
+                    bottom: 12,
+                    left: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -633,14 +637,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          RatingBarIndicator(
-                            rating: kost.rating,
-                            itemBuilder: (context, index) =>
-                                Icon(Icons.star, color: Colors.amber),
-                            itemCount: 5,
-                            itemSize: 15.0,
-                            direction: Axis.horizontal,
-                          ),
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
                           Text(
                             kost.rating.toStringAsFixed(1),
                             style: const TextStyle(
@@ -656,20 +654,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
-            // Content section
+            // CONTENT
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title dan location
                   Text(
                     kost.name,
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -677,14 +672,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.location_on, color: Colors.red[400], size: 16),
+                      Icon(Icons.location_on, size: 16, color: Colors.red[400]),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           kost.address,
                           style: TextStyle(
                             color: Colors.grey[600],
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -693,35 +688,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // Description
                   Text(
                     kost.description,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 16),
-
-                  // Facilities
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: kost.facilities.take(4).map<Widget>((facility) {
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: kost.facilities.take(3).map((facility) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                          horizontal: 8,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: facility.color.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(16),
+                          color: facility.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: facility.color.withOpacity(0.4),
+                            color: facility.color.withOpacity(0.3),
                           ),
                         ),
                         child: Row(
@@ -729,15 +716,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Icon(
                               facility.icon,
-                              size: 14,
+                              size: 12,
                               color: facility.color,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
                             Text(
                               facility.name,
                               style: TextStyle(
                                 color: facility.color,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -746,110 +733,67 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }).toList(),
                   ),
-
-                  if (kost.facilities.length > 4)
+                  if (kost.facilities.length > 3)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        '+${kost.facilities.length - 4} fasilitas lainnya',
+                        '+${kost.facilities.length - 3} fasilitas lainnya',
                         style: TextStyle(
-                          color: kostColor,
-                          fontSize: 12,
+                          color: kost.getPrimaryColor(),
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-
-                  const SizedBox(height: 20),
-
-                  // Footer dengan price dan actions
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              kost.getFormattedPrice(),
-                              style: TextStyle(
-                                color: kostColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Updated: ${_formatDate(kost.updatedAt)}',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      KostDetailScreen(kost: kost),
-                                ),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: kostColor,
-                              side: BorderSide(color: kostColor),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Text(
-                              'Detail',
-                              style: TextStyle(fontSize: 13),
+                          Text(
+                            kost.getFormattedPrice(),
+                            style: TextStyle(
+                              color: kost.getPrimaryColor(),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: kost.status == KostStatus.available
-                                ? () => _showBookingDialog(kost)
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  kost.status == KostStatus.available
-                                  ? kostColor
-                                  : Colors.grey[400],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              elevation: kost.status == KostStatus.available
-                                  ? 3
-                                  : 0,
-                            ),
-                            child: Text(
-                              kost.status == KostStatus.available
-                                  ? 'Booking'
-                                  : 'Penuh',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          Text(
+                            'Update: ${_formatDate(kost.updatedAt)}',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 10,
                             ),
                           ),
                         ],
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => KostDetailScreen(kost: kost),
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kost.getPrimaryColor(),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Lihat Detail',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -857,85 +801,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showBookingDialog(BaseKost kost) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Booking Kost'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Apakah Anda yakin ingin booking kost ini?'),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: kost.getPrimaryColor().withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      kost.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text('Harga: ${kost.getFormattedPrice()}'),
-                    Text('Alamat: ${kost.address}'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showBookingSuccess(kost);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kost.getPrimaryColor(),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Ya, Booking'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showBookingSuccess(BaseKost kost) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Booking ${kost.name} berhasil!')),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
         ),
       ),
     );

@@ -1,4 +1,6 @@
-import 'package:aplikasi_kostqu/screens/forgrt_password_screen.dart';
+// screens/login_screen.dart - UPDATED VERSION
+import 'forgrt_password_screen.dart';
+import 'owner_booking_requests_screen.dart';
 import 'package:aplikasi_kostqu/widgets/custom_button.dart';
 import 'package:aplikasi_kostqu/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
@@ -58,14 +60,37 @@ class _LoginScreenState extends State<LoginScreen> {
         final email = _emailController.text.trim();
         final password = _passwordController.text;
 
-        final success = await _authService.login(email, password);
+        final LoginResult = await _authService.login(email, password);
 
         if (mounted) {
-          if (success) {
+          if (LoginResult.success) {
+            final isOwner =
+                email.contains('owner') ||
+                email.contains('pemilik') ||
+                email.contains('admin');
+
+            // Show loading message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isOwner
+                      ? 'Login berhasil! Selamat datang, Pemilik Kost'
+                      : 'Login berhasil! Selamat datang',
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 1),
+              ),
+            );
+
+            // Navigate berdasarkan role
+            await Future.delayed(const Duration(milliseconds: 500));
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => HomeScreen(userEmail: email),
+                builder: (context) => isOwner
+                    ? OwnerBookingRequestsScreen(userEmail: email)
+                    : HomeScreen(userEmail: email),
               ),
             );
           } else {
@@ -108,33 +133,154 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Demo Login'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
             children: [
-              const Text('Gunakan kredensial berikut untuk login:'),
-              const SizedBox(height: 12),
-              ...credentials.entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+              Icon(Icons.info_outline, color: const Color(0xFF6B46C1)),
+              const SizedBox(width: 8),
+              const Text('Demo Login'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gunakan kredensial berikut untuk login:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+
+                // Customer Accounts
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Email: ${entry.key}',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 16, color: Colors.blue),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Akun Pencari Kost',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Password: ${entry.value}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
+                      const Divider(height: 16),
+                      ...credentials.entries
+                          .where(
+                            (e) =>
+                                !e.key.contains('owner') &&
+                                !e.key.contains('pemilik'),
+                          )
+                          .map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Email: ${entry.key}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Password: ${entry.value}',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                     ],
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 12),
+
+                // Owner Accounts
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6B46C1).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF6B46C1).withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.business,
+                            size: 16,
+                            color: const Color(0xFF6B46C1),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Akun Pemilik Kost',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF6B46C1),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      ...credentials.entries
+                          .where(
+                            (e) =>
+                                e.key.contains('owner') ||
+                                e.key.contains('pemilik'),
+                          )
+                          .map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Email: ${entry.key}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Password: ${entry.value}',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -241,40 +387,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: 20),
-
-                          // Demo info
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6B46C1).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF6B46C1).withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: const Color(0xFF6B46C1),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: Text(
-                                    'Demo: Gunakan test@gmail.com / password',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF6B46C1),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
                           const SizedBox(height: 20),
 
                           // Email Field
