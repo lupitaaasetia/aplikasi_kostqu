@@ -240,7 +240,6 @@ class User {
 
   bool get isOwner => role == UserRole.owner;
   bool get isAdmin => role == UserRole.admin;
-  bool get isCustomer => role == UserRole.customer;
 }
 
 // Model untuk registrasi

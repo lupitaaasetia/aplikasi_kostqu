@@ -45,9 +45,7 @@ dependencies:
   shared_preferences: ^2.2.2
   image_picker: ^1.0.4
   image_picker_for_web: ^3.0.0
-  pdf: ^3.10.7
-  path_provider: ^2.1.1
-  open_file: ^3.3.2
+  # pdf, path_provider and open_file removed: PDF download feature disabled
   geolocator: ^14.0.2
   permission_handler: ^11.0.1
  

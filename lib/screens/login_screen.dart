@@ -1,10 +1,10 @@
 // screens/login_screen.dart - UPDATED VERSION
 import 'forgrt_password_screen.dart';
-import 'owner_booking_requests_screen.dart';
 import 'package:aplikasi_kostqu/widgets/custom_button.dart';
 import 'package:aplikasi_kostqu/widgets/custom_text_field.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../models/user.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -60,37 +60,27 @@ class _LoginScreenState extends State<LoginScreen> {
         final email = _emailController.text.trim();
         final password = _passwordController.text;
 
-        final LoginResult = await _authService.login(email, password);
+  final loginResult = await _authService.login(email, password);
 
         if (mounted) {
-          if (LoginResult.success) {
-            final isOwner =
-                email.contains('owner') ||
-                email.contains('pemilik') ||
-                email.contains('admin');
-
+          if (loginResult.success) {
             // Show loading message
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  isOwner
-                      ? 'Login berhasil! Selamat datang, Pemilik Kost'
-                      : 'Login berhasil! Selamat datang',
-                ),
+              const SnackBar(
+                content: Text('Login berhasil! Selamat datang'),
                 backgroundColor: Colors.green,
-                duration: const Duration(seconds: 1),
+                duration: Duration(seconds: 1),
               ),
             );
 
-            // Navigate berdasarkan role
+            // Navigate to HomeScreen for all accounts
             await Future.delayed(const Duration(milliseconds: 500));
 
+            final bool isOwner = loginResult.user?.role == UserRole.owner;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => isOwner
-                    ? OwnerBookingRequestsScreen(userEmail: email)
-                    : HomeScreen(userEmail: email),
+                builder: (context) => HomeScreen(userEmail: email, isOwner: isOwner),
               ),
             );
           } else {

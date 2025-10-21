@@ -1,8 +1,9 @@
-// screens/kost_detail_screen.dart - COMPLETE FIXED VERSION
+// screens/kost_detail_screen.dart - FIXED with photo_view & carousel_slider
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+// Using built-in PageView + InteractiveViewer instead of external packages
 import '../models/kost.dart';
 import '../models/booking.dart';
 import '../services/booking_service.dart';
@@ -10,8 +11,12 @@ import 'booking_screen.dart';
 
 class KostDetailScreen extends StatefulWidget {
   final BaseKost kost;
-
-  const KostDetailScreen({super.key, required this.kost});
+  final int initialImageIndex;
+  const KostDetailScreen({
+    super.key,
+    required this.kost,
+    this.initialImageIndex = 0,
+  });
 
   @override
   State<KostDetailScreen> createState() => _KostDetailScreenState();
@@ -20,7 +25,6 @@ class KostDetailScreen extends StatefulWidget {
 class _KostDetailScreenState extends State<KostDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
   final BookingService _bookingService = BookingService();
   bool _isBookmarked = false;
   GoogleMapController? _mapController;
@@ -31,15 +35,13 @@ class _KostDetailScreenState extends State<KostDetailScreen>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
     _animationController.forward();
+    _currentImageIndex = widget.initialImageIndex;
+    _pageController = PageController(initialPage: widget.initialImageIndex);
     _isBookmarked = _bookingService.isFavorite(widget.kost.id);
     _loadReviews();
   }
@@ -83,7 +85,6 @@ class _KostDetailScreenState extends State<KostDetailScreen>
     _mapController = controller;
   }
 
-  // Getter untuk lokasi kost - FIX ERROR MAP
   LatLng get _kostLocation {
     return LatLng(widget.kost.latitude, widget.kost.longitude);
   }
@@ -96,7 +97,7 @@ class _KostDetailScreenState extends State<KostDetailScreen>
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar dengan Image Gallery
+          // App Bar dengan Image Gallery menggunakan CarouselSlider
           SliverAppBar(
             expandedHeight: 350,
             pinned: true,
@@ -104,67 +105,71 @@ class _KostDetailScreenState extends State<KostDetailScreen>
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 children: [
-                  // Image Gallery dengan PageView (Clickable untuk Fullscreen)
-                  PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentImageIndex = index;
-                      });
-                    },
-                    itemCount: widget.kost.imageUrls.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () => _showFullscreenImage(0),
-                        child: Hero(
-                          tag: 'kost_image_$index',
-                          child: Image.network(
-                            widget.kost.imageUrls[index],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      primaryColor.withOpacity(0.8),
-                                      primaryColor.withOpacity(0.6),
-                                    ],
+                  // Image gallery menggunakan PageView
+                  SizedBox(
+                    height: 350,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.kost.imageUrls.length,
+                      onPageChanged: (index) {
+                        setState(() => _currentImageIndex = index);
+                      },
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () => _showFullscreenGallery(index),
+                          child: Hero(
+                            tag: 'kost_${widget.kost.id}_image_$index',
+                            child: Image.network(
+                              widget.kost.imageUrls[index],
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        primaryColor.withOpacity(0.8),
+                                        primaryColor.withOpacity(0.6),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    kostIcon,
-                                    size: 80,
-                                    color: Colors.white,
+                                  child: Center(
+                                    child: Icon(
+                                      kostIcon,
+                                      size: 80,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.grey[200],
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value:
-                                        loadingProgress.expectedTotalBytes !=
-                                            null
-                                        ? loadingProgress
-                                                  .cumulativeBytesLoaded /
+                                );
+                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey[200],
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value:
                                               loadingProgress
-                                                  .expectedTotalBytes!
-                                        : null,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                              );
-                            },
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                              : null,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                   // Gradient overlay
                   Container(
@@ -207,33 +212,36 @@ class _KostDetailScreenState extends State<KostDetailScreen>
                   Positioned(
                     bottom: 45,
                     right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.zoom_out_map,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_currentImageIndex + 1}/${widget.kost.imageUrls.length}',
-                            style: const TextStyle(
+                    child: GestureDetector(
+                      onTap: () => _showFullscreenGallery(_currentImageIndex),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.zoom_out_map,
                               color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                              size: 16,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_currentImageIndex + 1}/${widget.kost.imageUrls.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -294,7 +302,7 @@ class _KostDetailScreenState extends State<KostDetailScreen>
                   _buildReviewsSection(),
                   const SizedBox(height: 8),
                   _buildStatisticsSection(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -1350,131 +1358,23 @@ class _KostDetailScreenState extends State<KostDetailScreen>
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  // Fullscreen Image Viewer dengan Zoom & Swipe
-  void _showFullscreenImage(int initialIndex) {
+  // 🔥 Fullscreen Gallery dengan PhotoView - Zoom & Swipe
+  void _showFullscreenGallery(int initialIndex) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) {
-          final pageController = PageController(initialPage: initialIndex);
-          int currentPage = initialIndex;
-
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return Scaffold(
-                backgroundColor: Colors.black,
-                body: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // 📸 PageView untuk gambar
-                    PageView.builder(
-                      controller: pageController,
-                      physics:
-                          const NeverScrollableScrollPhysics(), // ❌ nonaktifkan swipe manual
-                      itemCount: widget.kost.imageUrls.length,
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Center(
-                            child: Hero(
-                              tag: 'kost_image_$index',
-                              child: InteractiveViewer(
-                                panEnabled: true,
-                                minScale: 1.0,
-                                maxScale: 4.0,
-                                child: Image.network(
-                                  widget.kost.imageUrls[index],
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    // ⬅️ Tombol panah kiri
-                    Positioned(
-                      left: 16,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () {
-                          if (currentPage > 0) {
-                            setState(() {
-                              currentPage--;
-                            });
-                            pageController.animateToPage(
-                              currentPage,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-
-                    // ➡️ Tombol panah kanan
-                    Positioned(
-                      right: 16,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                        onPressed: () {
-                          if (currentPage < widget.kost.imageUrls.length - 1) {
-                            setState(() {
-                              currentPage++;
-                            });
-                            pageController.animateToPage(
-                              currentPage,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-
-                    // 🟡 Indikator titik di bawah
-                    Positioned(
-                      bottom: 30,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(
-                          widget.kost.imageUrls.length,
-                          (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: currentPage == index ? 12 : 8,
-                            height: currentPage == index ? 12 : 8,
-                            decoration: BoxDecoration(
-                              color: currentPage == index
-                                  ? Colors.white
-                                  : Colors.white54,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+        builder: (context) => FullscreenGalleryScreen(
+          imageUrls: widget.kost.imageUrls,
+          initialIndex: initialIndex,
+          kostName: widget.kost.name,
+          kostId: widget.kost.id,
+        ),
       ),
     );
   }
 }
 
-// Helper classes
+// Helper class
 class InfoItem {
   final String label;
   final String value;
@@ -1482,28 +1382,29 @@ class InfoItem {
   InfoItem(this.label, this.value);
 }
 
-// Fullscreen Image Viewer Widget
-class FullscreenImageViewer extends StatefulWidget {
+// 🖼️ Fullscreen Gallery Screen dengan PhotoView
+class FullscreenGalleryScreen extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
   final String kostName;
+  final String? kostId; // used to build matching Hero tags
 
-  const FullscreenImageViewer({
+  const FullscreenGalleryScreen({
     super.key,
     required this.imageUrls,
     required this.initialIndex,
     required this.kostName,
+    this.kostId,
   });
 
   @override
-  State<FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+  State<FullscreenGalleryScreen> createState() =>
+      _FullscreenGalleryScreenState();
 }
 
-class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
-  late PageController _pageController;
+class _FullscreenGalleryScreenState extends State<FullscreenGalleryScreen> {
   late int _currentIndex;
-  final TransformationController _transformationController =
-      TransformationController();
+  late PageController _pageController;
 
   @override
   void initState() {
@@ -1515,7 +1416,6 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
   @override
   void dispose() {
     _pageController.dispose();
-    _transformationController.dispose();
     super.dispose();
   }
 
@@ -1525,48 +1425,49 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Image Gallery dengan Zoom
+          // Fullscreen gallery: PageView + InteractiveViewer
           PageView.builder(
             controller: _pageController,
+            itemCount: widget.imageUrls.length,
             onPageChanged: (index) {
               setState(() {
                 _currentIndex = index;
-                _transformationController.value = Matrix4.identity();
               });
             },
-            itemCount: widget.imageUrls.length,
             itemBuilder: (context, index) {
               return Center(
-                child: InteractiveViewer(
-                  transformationController: _transformationController,
-                  minScale: 0.5,
-                  maxScale: 4.0,
-                  child: Hero(
-                    tag: 'kost_image_$index',
-                    child: Image.network(
-                      widget.imageUrls[index],
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(
-                            Icons.broken_image,
-                            size: 80,
-                            color: Colors.white54,
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                : null,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                    child: Hero(
+                    tag: 'kost_${widget.kostId ?? widget.imageUrls.hashCode}_image_$index',
+                    child: InteractiveViewer(
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      child: Image.network(
+                        widget.imageUrls[index],
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(
+                              Icons.broken_image,
+                              size: 80,
+                              color: Colors.white54,
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -1596,7 +1497,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   Expanded(
@@ -1615,22 +1520,23 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          'Geser untuk melihat foto lainnya',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
+                        const Text(
+                          'Pinch untuk zoom • Geser untuk foto lain',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.download, color: Colors.white),
+                    icon: const Icon(
+                      Icons.share,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Fitur download dalam pengembangan'),
+                          content: Text('Fitur share dalam pengembangan'),
                           backgroundColor: Colors.black87,
                         ),
                       );
@@ -1651,7 +1557,7 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                 left: 16,
                 right: 16,
                 bottom: MediaQuery.of(context).padding.bottom + 16,
-                top: 16,
+                top: 20,
               ),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -1695,20 +1601,23 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
                   ),
                   const SizedBox(height: 16),
                   // Dot Indicators
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      widget.imageUrls.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentIndex == index ? 24 : 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: _currentIndex == index
-                              ? Colors.white
-                              : Colors.white.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(4),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        widget.imageUrls.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: _currentIndex == index ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _currentIndex == index
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                     ),
@@ -1717,37 +1626,6 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer> {
               ),
             ),
           ),
-
-          // Zoom Instructions (fade in/out)
-          if (_transformationController.value.getMaxScaleOnAxis() == 1.0)
-            Positioned(
-              top: MediaQuery.of(context).size.height / 2 - 50,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.zoom_in, color: Colors.white, size: 32),
-                      SizedBox(height: 8),
-                      Text(
-                        'Pinch untuk zoom',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

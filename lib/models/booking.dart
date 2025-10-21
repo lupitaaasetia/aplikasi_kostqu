@@ -1,6 +1,17 @@
 import 'kost.dart';
 
-enum BookingStatus { pending, confirmed, paid, active, completed, cancelled }
+enum BookingStatus {
+  pending('Menunggu Konfirmasi'),
+  confirmed('Disetujui'),
+  rejected('Ditolak'),
+  completed('Lengkap'),
+  cancelled('Dibatalkan'),
+  paid('Sudah Dibayar'),
+  active('Aktif');
+
+  final String displayName;
+  const BookingStatus(this.displayName);
+}
 
 enum PaymentStatus { pending, paid, failed, refunded }
 
@@ -61,6 +72,8 @@ class Booking {
         return 'Menunggu Konfirmasi';
       case BookingStatus.confirmed:
         return 'Terkonfirmasi';
+      case BookingStatus.rejected:
+        return 'Ditolak';
       case BookingStatus.paid:
         return 'Sudah Dibayar';
       case BookingStatus.active:

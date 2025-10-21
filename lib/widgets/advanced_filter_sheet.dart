@@ -1,6 +1,5 @@
 // widgets/advanced_filter_sheet.dart
 import 'package:flutter/material.dart';
-import '../models/kost.dart';
 import '../models/facility.dart';
 
 class KostFilter {
@@ -562,6 +561,12 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
         return Icons.security;
       case FacilityType.other:
         return Icons.more_horiz;
+      case FacilityType.general:
+        return Icons.check_circle_outline;
+      case FacilityType.room:
+        return Icons.bed;
+      case FacilityType.service:
+        return Icons.room_service;
     }
   }
 
@@ -583,6 +588,12 @@ class _AdvancedFilterSheetState extends State<AdvancedFilterSheet> {
         return 'Security';
       case FacilityType.other:
         return 'Lainnya';
+      case FacilityType.general:
+        return 'Umum';
+      case FacilityType.room:
+        return 'Kamar';
+      case FacilityType.service:
+        return 'Layanan';
     }
   }
 }

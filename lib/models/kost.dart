@@ -25,6 +25,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
   final double _latitude;
   final double _longitude;
   final List<String> _imageUrls;
+  String _ownerEmail;
   KostStatus _status;
 
   BaseKost({
@@ -39,6 +40,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
     required double latitude,
     required double longitude,
     required List<String> imageUrls,
+    String ownerEmail = '',
     KostStatus status = KostStatus.available,
   }) : _name = name,
        _address = address,
@@ -50,6 +52,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
        _latitude = latitude,
        _longitude = longitude,
        _imageUrls = List.from(imageUrls),
+       _ownerEmail = ownerEmail,
        _status = status {
     _validateInputs();
   }
@@ -64,6 +67,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
   String get phoneNumber => _phoneNumber;
   double get latitude => _latitude;
   double get longitude => _longitude;
+  String get ownerEmail => _ownerEmail;
   KostStatus get status => _status;
   List<String> get imageUrls => List.unmodifiable(_imageUrls);
 
@@ -210,6 +214,7 @@ abstract class BaseKost extends BaseEntity implements Searchable, Sortable {
       'rating': _rating,
       'facilities': _facilities.map((f) => f.toJson()).toList(),
       'phoneNumber': _phoneNumber,
+      'ownerEmail': _ownerEmail,
       'latitude': _latitude,
       'longitude': _longitude,
       'imageUrls': _imageUrls,

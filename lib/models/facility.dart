@@ -11,6 +11,9 @@ enum FacilityType {
   kitchen,
   security,
   other,
+  general,
+  room,
+  service,
 }
 
 class Facility extends BaseEntity {

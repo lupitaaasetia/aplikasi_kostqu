@@ -683,6 +683,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         return Colors.grey;
       case BookingStatus.cancelled:
         return Colors.red;
+      case BookingStatus.rejected:
+        return Colors.redAccent;
     }
   }
 }

@@ -298,7 +298,6 @@ SYARAT DAN KETENTUAN SEWA KOST
 ''';
   }
 
-  // Initialize demo data
   void initializeDemoReviews(List<BaseKost> kostList) {
     if (_reviews.isNotEmpty) return;
 
@@ -401,6 +400,107 @@ SYARAT DAN KETENTUAN SEWA KOST
       );
 
       _bookings[index] = canceledBooking;
+    }
+  }
+
+  // ✅ Tambahkan method untuk menghitung jumlah booking
+  int getPendingBookingsCount() {
+    return _bookings.where((b) => b.status == BookingStatus.pending).length;
+  }
+
+  int getConfirmedBookingsCount() {
+    return _bookings.where((b) => b.status == BookingStatus.confirmed).length;
+  }
+
+  int getPaidBookingsCount() {
+    return _bookings
+        .where(
+          (b) =>
+              b.status == BookingStatus.paid ||
+              b.status == BookingStatus.active,
+        )
+        .length;
+  }
+
+  int getCancelledBookingsCount() {
+    return _bookings.where((b) => b.status == BookingStatus.cancelled).length;
+  }
+
+  // Update booking status by id
+  void updateBookingStatus(String id, BookingStatus status) {
+    final index = _bookings.indexWhere((b) => b.id == id);
+    if (index != -1) {
+      final booking = _bookings[index];
+      final updatedBooking = Booking(
+        id: booking.id,
+        kost: booking.kost,
+        userEmail: booking.userEmail,
+        roomDetail: booking.roomDetail,
+        bookingDate: booking.bookingDate,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        duration: booking.duration,
+        totalPrice: booking.totalPrice,
+        depositAmount: booking.depositAmount,
+        status: status,
+        paymentStatus: booking.paymentStatus,
+        notes: booking.notes,
+        createdAt: booking.createdAt,
+      );
+
+      _bookings[index] = updatedBooking;
+    }
+  }
+
+  // Approve booking and optionally attach notes
+  void approveBooking(String id, String? notes) {
+    final index = _bookings.indexWhere((b) => b.id == id);
+    if (index != -1) {
+      final booking = _bookings[index];
+      final updatedBooking = Booking(
+        id: booking.id,
+        kost: booking.kost,
+        userEmail: booking.userEmail,
+        roomDetail: booking.roomDetail,
+        bookingDate: booking.bookingDate,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        duration: booking.duration,
+        totalPrice: booking.totalPrice,
+        depositAmount: booking.depositAmount,
+        status: BookingStatus.confirmed,
+        paymentStatus: booking.paymentStatus,
+        notes: notes ?? booking.notes,
+        createdAt: booking.createdAt,
+      );
+
+      _bookings[index] = updatedBooking;
+    }
+  }
+
+  // Reject booking and optionally attach notes
+  void rejectBooking(String id, String? notes) {
+    final index = _bookings.indexWhere((b) => b.id == id);
+    if (index != -1) {
+      final booking = _bookings[index];
+      final updatedBooking = Booking(
+        id: booking.id,
+        kost: booking.kost,
+        userEmail: booking.userEmail,
+        roomDetail: booking.roomDetail,
+        bookingDate: booking.bookingDate,
+        checkInDate: booking.checkInDate,
+        checkOutDate: booking.checkOutDate,
+        duration: booking.duration,
+        totalPrice: booking.totalPrice,
+        depositAmount: booking.depositAmount,
+        status: BookingStatus.rejected,
+        paymentStatus: booking.paymentStatus,
+        notes: notes ?? booking.notes,
+        createdAt: booking.createdAt,
+      );
+
+      _bookings[index] = updatedBooking;
     }
   }
 }

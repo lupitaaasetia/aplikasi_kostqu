@@ -8,14 +8,166 @@ import '../services/notification_service.dart';
 import 'kost_detail_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
+import 'owner_profil_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userEmail;
+  final bool isOwner;
 
-  const HomeScreen({super.key, required this.userEmail});
+  const HomeScreen({super.key, required this.userEmail, this.isOwner = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
+}
+
+// Private widget: swipeable image carousel for kost card
+class _KostImageCarousel extends StatefulWidget {
+  final BaseKost kost;
+
+  const _KostImageCarousel({Key? key, required this.kost}) : super(key: key);
+
+  @override
+  State<_KostImageCarousel> createState() => _KostImageCarouselState();
+}
+
+class _KostImageCarouselState extends State<_KostImageCarousel> {
+  late final PageController _pageController;
+  int _current = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kost = widget.kost;
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: kost.imageUrls.isNotEmpty
+                ? GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => KostDetailScreen(
+                            kost: kost,
+                            initialImageIndex: _current,
+                          ),
+                        ),
+                      );
+                    },
+                    child: PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (i) => setState(() => _current = i),
+                      itemCount: kost.imageUrls.length,
+                      itemBuilder: (context, index) {
+                        final url = kost.imageUrls[index];
+                        return Hero(
+                          tag: 'kost_${kost.id}_image_$index',
+                          child: Image.network(
+                            url,
+                            width: double.infinity,
+                            height: 200,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: kost.getPrimaryColor().withOpacity(
+                                    0.3,
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      kost.getKostIcon(),
+                                      size: 60,
+                                      color: kost.getPrimaryColor(),
+                                    ),
+                                  ),
+                                ),
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: progress.expectedTotalBytes != null
+                                        ? progress.cumulativeBytesLoaded /
+                                              progress.expectedTotalBytes!
+                                        : null,
+                                    color: kost.getPrimaryColor(),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    color: kost.getPrimaryColor().withOpacity(0.3),
+                    child: Center(
+                      child: Icon(
+                        kost.getKostIcon(),
+                        size: 60,
+                        color: kost.getPrimaryColor(),
+                      ),
+                    ),
+                  ),
+          ),
+          // gradient overlay
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+              ),
+            ),
+          ),
+          // indicators
+          if (kost.imageUrls.length > 1)
+            Positioned(
+              bottom: 10,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  kost.imageUrls.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _current == i ? 18 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _current == i ? Colors.white : Colors.white54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -196,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -210,19 +362,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(25),
                         ),
-                        child: const Icon(
-                          Icons.home_work,
-                          color: Color(0xFF6B46C1),
-                          size: 30,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
+
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
                           'KostQu',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -230,18 +385,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Selamat Datang!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  // Center welcome text and show user email in a pill-shaped box
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Selamat Datang!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.userEmail,
+                            style: const TextStyle(
+                              color: Color(0xFF6B46C1),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.userEmail,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -299,14 +478,20 @@ class _HomeScreenState extends State<HomeScreen> {
         Padding(
           padding: const EdgeInsets.only(right: 8),
           child: GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ProfileScreen(userEmail: widget.userEmail),
+                  builder: (context) => widget.isOwner
+                      ? OwnerProfileScreen(userEmail: widget.userEmail)
+                      : ProfileScreen(userEmail: widget.userEmail),
                 ),
               );
+
+              // If owner added a kost and returned true, refresh the list
+              if (result == true) {
+                _initializeData();
+              }
             },
             child: CircleAvatar(
               backgroundColor: Colors.white,
@@ -327,6 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // BottomNavigationBar is defined in the main scaffold (if used).
   Widget _buildSearchSection() {
     return Container(
       color: Colors.white,
@@ -476,184 +662,17 @@ class _HomeScreenState extends State<HomeScreen> {
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KostDetailScreen(kost: kost)),
+          MaterialPageRoute(
+            builder: (context) =>
+                KostDetailScreen(kost: kost, initialImageIndex: 0),
+          ),
         ),
         borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // IMAGE WITH REAL PHOTO
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  // Background Image
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: kost.imageUrls.isNotEmpty
-                        ? Image.network(
-                            kost.imageUrls[0], // Ambil gambar pertama dari list
-                            width: double.infinity,
-                            height: 200,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: kost.getPrimaryColor().withOpacity(0.3),
-                                child: Center(
-                                  child: Icon(
-                                    kost.getKostIcon(),
-                                    size: 60,
-                                    color: kost.getPrimaryColor(),
-                                  ),
-                                ),
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.grey[200],
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value:
-                                        loadingProgress.expectedTotalBytes !=
-                                            null
-                                        ? loadingProgress
-                                                  .cumulativeBytesLoaded /
-                                              loadingProgress
-                                                  .expectedTotalBytes!
-                                        : null,
-                                    color: kost.getPrimaryColor(),
-                                  ),
-                                ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: kost.getPrimaryColor().withOpacity(0.3),
-                            child: Center(
-                              child: Icon(
-                                kost.getKostIcon(),
-                                size: 60,
-                                color: kost.getPrimaryColor(),
-                              ),
-                            ),
-                          ),
-                  ),
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Status badge
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kost.status == KostStatus.available
-                            ? Colors.green
-                            : Colors.red,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        kost.status.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Type badge
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kost.getPrimaryColor(),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            kost.getKostIcon(),
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            kost.getKostType(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Rating
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            kost.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // IMAGE CAROUSEL (swipeable)
+            _KostImageCarousel(kost: kost),
             // CONTENT
             Padding(
               padding: const EdgeInsets.all(16),
@@ -773,7 +792,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => KostDetailScreen(kost: kost),
+                            builder: (context) => KostDetailScreen(
+                              kost: kost,
+                              initialImageIndex: 0,
+                            ),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(

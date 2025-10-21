@@ -1,6 +1,5 @@
 // screens/favorites_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/kost.dart';
 import '../services/kost_service.dart';
 import '../services/booking_service.dart';
@@ -93,7 +92,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KostDetailScreen(kost: kost)),
+          MaterialPageRoute(builder: (context) => KostDetailScreen(kost: kost, initialImageIndex: 0)),
         ),
         borderRadius: BorderRadius.circular(16),
         child: Column(

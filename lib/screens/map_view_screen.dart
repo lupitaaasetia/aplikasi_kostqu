@@ -1,10 +1,12 @@
 // screens/map_view_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import '../models/kost.dart';
-import '../services/kost_service.dart';
+// kost_service removed from this screen because data is passed in via constructor
 import 'kost_detail_screen.dart';
 
 class MapViewScreen extends StatefulWidget {
@@ -18,7 +20,7 @@ class MapViewScreen extends StatefulWidget {
 
 class _MapViewScreenState extends State<MapViewScreen> {
   GoogleMapController? _mapController;
-  final KostService _kostService = KostService();
+  // KostService removed: data supplied via widget.kosts
 
   // Default to UNESA Kampus 5 Magetan location
   final LatLng _unesaLocation = const LatLng(-7.6464, 111.3468);
@@ -213,21 +215,69 @@ class _MapViewScreenState extends State<MapViewScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Google Map
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: _unesaLocation,
-              zoom: 13,
+          // Google Map (on web you must provide Maps JS API key in web/index.html)
+          if (!kIsWeb)
+            GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: _unesaLocation,
+                zoom: 13,
+              ),
+              markers: _markers,
+              mapType: _currentMapType,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: true,
+              mapToolbarEnabled: false,
+            )
+          else
+            // Web fallback: avoid runtime JS exception when Google Maps JS isn't loaded.
+            Container(
+              color: Colors.grey[200],
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.map, size: 64, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Peta tidak tersedia di web tanpa API key',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Untuk menampilkan Google Maps di web, tambahkan Maps JavaScript API key di file web/index.html dan aktifkan Maps JavaScript API pada Google Cloud Console.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final url = Uri.parse('https://www.google.com/maps');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Buka Google Maps di browser'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6B46C1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            markers: _markers,
-            mapType: _currentMapType,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            compassEnabled: true,
-            mapToolbarEnabled: false,
-          ),
 
           // Top bar with back button and map controls
           Positioned(
@@ -429,6 +479,14 @@ class _MapViewScreenState extends State<MapViewScreen> {
               right: 0,
               child: _buildSelectedKostCard(),
             ),
+          // Loading overlay while fetching location
+          if (_isLoadingLocation)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.25),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            ),
         ],
       ),
     );
@@ -576,7 +634,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => KostDetailScreen(kost: kost),
+                          builder: (context) => KostDetailScreen(
+                            kost: kost,
+                            initialImageIndex: 0,
+                          ),
                         ),
                       );
                     },

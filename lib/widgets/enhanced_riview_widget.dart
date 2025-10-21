@@ -393,17 +393,9 @@ class EnhancedReviewWidget extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: PageView.builder(
-                controller: PageController(initialPage: initialIndex),
-                itemCount: review.photoUrls.length,
-                itemBuilder: (context, index) {
-                  return InteractiveViewer(
-                    child: Image.network(
-                      review.photoUrls[index],
-                      fit: BoxFit.contain,
-                    ),
-                  );
-                },
+              child: _ReviewPhotoGallery(
+                photoUrls: review.photoUrls,
+                initialIndex: initialIndex,
               ),
             ),
           ],
@@ -647,6 +639,106 @@ class EnhancedReviewWidget extends StatelessWidget {
     } else {
       return '${(difference.inDays / 7).floor()}w';
     }
+  }
+}
+
+// Small gallery widget used by review dialog to show photos with arrows + zoom
+// Top-level so it can be reused from the stateless widget above.
+class _ReviewPhotoGallery extends StatefulWidget {
+  final List<String> photoUrls;
+  final int initialIndex;
+
+  const _ReviewPhotoGallery({
+    Key? key,
+    required this.photoUrls,
+    required this.initialIndex,
+  }) : super(key: key);
+
+  @override
+  State<_ReviewPhotoGallery> createState() => _ReviewPhotoGalleryState();
+}
+
+class _ReviewPhotoGalleryState extends State<_ReviewPhotoGallery> {
+  late PageController _controller;
+  late int _current;
+  final TransformationController _transform = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _transform.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        PageView.builder(
+          controller: _controller,
+          // allow swipe between images, but only pan when zoomed
+          onPageChanged: (i) {
+            setState(() => _current = i);
+            _transform.value = Matrix4.identity();
+          },
+          itemCount: widget.photoUrls.length,
+          itemBuilder: (context, index) {
+            return Center(
+              child: InteractiveViewer(
+                transformationController: _transform,
+                panEnabled: _transform.value.getMaxScaleOnAxis() > 1.0,
+                minScale: 1.0,
+                maxScale: 4.0,
+                child: Image.network(
+                  widget.photoUrls[index],
+                  fit: BoxFit.contain,
+                ),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          left: 8,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+            onPressed: _current > 0
+                ? () {
+                    setState(() => _current--);
+                    _controller.animateToPage(
+                      _current,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                : null,
+          ),
+        ),
+        Positioned(
+          right: 8,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+            onPressed: _current < widget.photoUrls.length - 1
+                ? () {
+                    setState(() => _current++);
+                    _controller.animateToPage(
+                      _current,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                : null,
+          ),
+        ),
+      ],
+    );
   }
 }
 

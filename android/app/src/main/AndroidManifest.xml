@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allow the app to use the internet for loading network images and APIs -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="aplikasi_kostqu"
         android:name="${applicationName}"

@@ -34,102 +34,6 @@ class _BookingScreenState extends State<BookingScreen> {
     super.dispose();
   }
 
-  void _bookingOnly() {
-    if (_formKey.currentState!.validate()) {
-      if (!_viewModel.validateBooking()) {
-        _showValidationError();
-        return;
-      }
-
-      final booking = _viewModel.createBooking(
-        kost: widget.kost,
-        userEmail: 'user@email.com',
-        notes: _viewModel.notes,
-      );
-
-      // Booking sudah otomatis tersimpan via createBooking di BookingService
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
-              const SizedBox(width: 12),
-              const Text('Booking Berhasil!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Booking Anda telah tersimpan. Anda dapat melanjutkan pembayaran nanti melalui halaman Booking.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      size: 20,
-                      color: Colors.blue,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'ID Booking: ${booking.id}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Back to previous screen
-              },
-              child: const Text('Kembali'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PaymentScreen(booking: booking),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.kost.getPrimaryColor(),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Bayar Sekarang'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
   void _proceedToPayment() {
     if (_formKey.currentState!.validate()) {
       if (!_viewModel.validateBooking()) {
@@ -744,25 +648,6 @@ class _BookingScreenState extends State<BookingScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _bookingOnly,
-                icon: const Icon(Icons.bookmark_add, size: 18),
-                label: const Text('Booking Dulu'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: widget.kost.getPrimaryColor(),
-                  side: BorderSide(
-                    color: widget.kost.getPrimaryColor(),
-                    width: 2,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _proceedToPayment,
