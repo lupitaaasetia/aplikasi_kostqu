@@ -634,7 +634,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           RatingBarIndicator(
-                            rating: 2.6,
+                            rating: kost.rating,
                             itemBuilder: (context, index) =>
                                 Icon(Icons.star, color: Colors.amber),
                             itemCount: 5,
